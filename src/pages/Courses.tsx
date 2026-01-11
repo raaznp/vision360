@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Search, Filter, Clock, Users, CheckCircle2, PlayCircle } from "lucide-react";
 import Layout from "@/components/Layout";
@@ -6,98 +6,89 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
-const courses = [
-  {
-    id: "truck-loading",
-    title: "Truck Loading and Unloading Safety",
-    description: "Comprehensive training on safe procedures for loading and unloading trucks in warehouse environments.",
-    duration: "4 hours",
-    modules: 8,
-    enrolled: 245,
-    progress: 75,
-    status: "in-progress" as const,
-    category: "Logistics",
-    image: "🚛",
-  },
-  {
-    id: "forklift-ops",
-    title: "Forklift Operations & Safety",
-    description: "Learn safe forklift operation techniques, maintenance checks, and hazard awareness.",
-    duration: "3 hours",
-    modules: 6,
-    enrolled: 312,
-    progress: 30,
-    status: "in-progress" as const,
-    category: "Equipment",
-    image: "🏗️",
-  },
-  {
-    id: "ppe-fundamentals",
-    title: "PPE Fundamentals",
-    description: "Essential training on selecting, using, and maintaining personal protective equipment.",
-    duration: "2 hours",
-    modules: 5,
-    enrolled: 520,
-    progress: 100,
-    status: "completed" as const,
-    category: "Safety Basics",
-    image: "🦺",
-  },
-  {
-    id: "hazmat-handling",
-    title: "Hazardous Materials Handling",
-    description: "Safe handling, storage, and transportation of hazardous materials in the workplace.",
-    duration: "5 hours",
-    modules: 10,
-    enrolled: 189,
-    progress: 100,
-    status: "completed" as const,
-    category: "Compliance",
-    image: "☢️",
-  },
-  {
-    id: "emergency-response",
-    title: "Emergency Response Procedures",
-    description: "Training on emergency protocols, evacuation procedures, and first response actions.",
-    duration: "3 hours",
-    modules: 7,
-    enrolled: 402,
-    progress: 0,
-    status: "not-started" as const,
-    category: "Emergency",
-    image: "🚨",
-  },
-  {
-    id: "ergonomics",
-    title: "Workplace Ergonomics",
-    description: "Prevent injuries through proper lifting techniques and ergonomic workstation setup.",
-    duration: "2 hours",
-    modules: 4,
-    enrolled: 278,
-    progress: 0,
-    status: "not-started" as const,
-    category: "Health",
-    image: "💪",
-  },
-];
-
-const statusColors = {
+const statusColors: any = {
   "not-started": { bg: "bg-secondary", text: "text-secondary-foreground", label: "Not Started" },
   "in-progress": { bg: "bg-accent/10", text: "text-accent", label: "In Progress" },
   "completed": { bg: "bg-success/10", text: "text-success", label: "Completed" },
 };
 
 export default function Courses() {
+  const { user } = useAuth();
+  const [courses, setCourses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
 
+  useEffect(() => {
+    async function fetchCoursesAndEnrollments() {
+      try {
+        setLoading(true);
+        // Fetch all courses with enrollment count
+        const { data: coursesData, error: coursesError } = await supabase
+          .from("courses")
+          .select("*, enrollments(count)");
+        
+        if (coursesError) throw coursesError;
+
+        let enrichedCourses = coursesData?.map(course => ({
+           ...course,
+           status: "not-started",
+           progress: 0,
+           enrolled: course.enrollments ? course.enrollments[0].count : 0
+        })) || [];
+
+        // If user is logged in, fetch their enrollments to update status
+        if (user) {
+          const { data: enrollments, error: enrollError } = await supabase
+            .from("enrollments")
+            .select("course_id, status, progress")
+            .eq("user_id", user.id);
+
+          if (!enrollError && enrollments) {
+            enrichedCourses = enrichedCourses.map(course => {
+              const enrollment = enrollments.find(e => e.course_id === course.id);
+              if (enrollment) {
+                return { 
+                  ...course, 
+                  status: enrollment.status, 
+                  progress: enrollment.progress 
+                };
+              }
+              return course;
+            });
+          }
+        }
+
+        setCourses(enrichedCourses);
+      } catch (error) {
+        console.error("Error loading courses:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchCoursesAndEnrollments();
+  }, [user]);
+
   const filteredCourses = courses.filter((course) => {
     const matchesSearch = course.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      course.description.toLowerCase().includes(searchQuery.toLowerCase());
+      course.description?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = !filterStatus || course.status === filterStatus;
     return matchesSearch && matchesFilter;
   });
+
+  if (loading) {
+    return (
+       <Layout>
+        <div className="container mx-auto px-4 py-8 flex items-center justify-center min-h-[50vh]">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -162,17 +153,17 @@ export default function Courses() {
             >
               {/* Course Image/Icon Header */}
               <div className="h-32 gradient-primary flex items-center justify-center">
-                <span className="text-5xl">{course.image}</span>
+                <span className="text-5xl">{course.image_emoji || "📚"}</span>
               </div>
 
               <div className="p-5">
                 {/* Status Badge */}
                 <div className="flex items-center justify-between mb-3">
                   <Badge variant="secondary" className="text-xs">
-                    {course.category}
+                    {course.category || "General"}
                   </Badge>
-                  <Badge className={`${statusColors[course.status].bg} ${statusColors[course.status].text} border-0`}>
-                    {statusColors[course.status].label}
+                  <Badge className={`${statusColors[course.status]?.bg || statusColors["not-started"].bg} ${statusColors[course.status]?.text || statusColors["not-started"].text} border-0`}>
+                    {statusColors[course.status]?.label || "Not Started"}
                   </Badge>
                 </div>
 
@@ -192,7 +183,7 @@ export default function Courses() {
                   </span>
                   <span className="flex items-center gap-1">
                     <Users className="h-4 w-4" />
-                    {course.enrolled}
+                    {course.enrolled || 0}
                   </span>
                 </div>
 
@@ -208,29 +199,26 @@ export default function Courses() {
                 )}
 
                 {/* Action Button */}
-                <div className="mt-4">
-                  <Button 
-                    variant={course.status === "completed" ? "outline" : "safety"} 
-                    className="w-full"
-                  >
-                    {course.status === "completed" ? (
-                      <>
-                        <CheckCircle2 className="h-4 w-4 mr-2" />
-                        Review Course
-                      </>
-                    ) : course.status === "in-progress" ? (
-                      <>
-                        <PlayCircle className="h-4 w-4 mr-2" />
-                        Continue
-                      </>
-                    ) : (
-                      <>
-                        <PlayCircle className="h-4 w-4 mr-2" />
-                        Start Course
-                      </>
-                    )}
-                  </Button>
-                </div>
+                {course.status !== "completed" && (
+                  <div className="mt-4">
+                    <Button 
+                      variant={course.status === "in-progress" ? "safety" : "safety"} 
+                      className="w-full"
+                    >
+                      {course.status === "in-progress" ? (
+                        <>
+                          <PlayCircle className="h-4 w-4 mr-2" />
+                          Continue
+                        </>
+                      ) : (
+                        <>
+                          <PlayCircle className="h-4 w-4 mr-2" />
+                          Start Course
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </div>
             </Link>
           ))}

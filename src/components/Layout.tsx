@@ -5,11 +5,74 @@ import {
   MessageSquare, 
   LogOut,
   Menu,
+  Award,
+  User,
+  ChevronDown,
   X
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo.jpg";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
+
+
+function UserAvatar() {
+  const { user } = useAuth();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [initials, setInitials] = useState("U");
+
+  useEffect(() => {
+    if (user) {
+      if(user.email) setInitials(user.email[0].toUpperCase());
+      
+      supabase
+        .from("profiles")
+        .select("avatar_url, full_name")
+        .eq("id", user.id)
+        .single()
+        .then(({ data }) => {
+          if (data?.avatar_url) setAvatarUrl(data.avatar_url);
+          if (data?.full_name) setInitials(data.full_name[0].toUpperCase());
+        });
+    }
+  }, [user]);
+
+  if (avatarUrl) {
+    return <img src={avatarUrl} alt="Avatar" className="h-full w-full object-cover" />;
+  }
+  return <span className="text-sm font-semibold text-sidebar-foreground">{initials}</span>;
+}
+
+function UserName() {
+  const { user } = useAuth();
+  const [name, setName] = useState("User");
+
+  useEffect(() => {
+    if (user) {
+      setName(user.email?.split("@")[0] || "User"); // Fallback
+      
+      supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", user.id)
+        .single()
+        .then(({ data }) => {
+          if (data?.full_name) setName(data.full_name);
+        });
+    }
+  }, [user]);
+
+  return <span className="text-sm font-medium">{name}</span>;
+}
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -22,8 +85,18 @@ const navigation = [
 ];
 
 export default function Layout({ children }: LayoutProps) {
+  const { user } = useAuth();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      supabase.from("profiles").select("role").eq("id", user.id).single()
+        .then(({ data }) => setIsAdmin(data?.role === 'admin'));
+    }
+  }, [user]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -63,17 +136,68 @@ export default function Layout({ children }: LayoutProps) {
 
             {/* User Actions */}
             <div className="flex items-center gap-3">
-              <div className="hidden sm:flex items-center gap-2 text-sidebar-foreground/80">
-                <div className="h-8 w-8 rounded-full bg-sidebar-accent flex items-center justify-center">
-                  <span className="text-sm font-semibold text-sidebar-foreground">SK</span>
-                </div>
-                <span className="text-sm font-medium">Subasana Karki</span>
+              <div className="hidden sm:block">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="flex items-center gap-2 h-auto p-1.5 pl-3 hover:bg-sidebar-accent hover:text-sidebar-foreground data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-foreground">
+                       <span className="text-sm font-medium text-sidebar-foreground/80"><UserName /></span>
+                       <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                       <div className="h-8 w-8 rounded-full bg-sidebar-accent flex items-center justify-center overflow-hidden border border-sidebar-border">
+                         <UserAvatar />
+                       </div>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuItem asChild>
+                      <Link to="/profile" className="cursor-pointer">
+                        <span className="flex items-center gap-2">
+                           <User className="h-4 w-4" />
+                           My Profile
+                        </span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/certificates" className="cursor-pointer">
+                        <span className="flex items-center gap-2">
+                           <Award className="h-4 w-4" />
+                           My Certificates
+                        </span>
+                      </Link>
+                    </DropdownMenuItem>
+                    
+                    {isAdmin && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel>Admin</DropdownMenuLabel>
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin/users" className="cursor-pointer">
+                             Users & Staff
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link to="/admin/logs" className="cursor-pointer">
+                             Activity Logs
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    <DropdownMenuSeparator />
+
+                    <DropdownMenuItem 
+                      className="cursor-pointer text-destructive focus:text-destructive"
+                      onClick={() => supabase.auth.signOut()}
+                    >
+                      <span className="flex items-center gap-2">
+                         <LogOut className="h-4 w-4" />
+                         Sign out
+                      </span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
-              <Link to="/">
-                <Button variant="ghost" size="icon" className="text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent">
-                  <LogOut className="h-5 w-5" />
-                </Button>
-              </Link>
+
+              {/* Mobile Menu Button */}
               <Button
                 variant="ghost"
                 size="icon"

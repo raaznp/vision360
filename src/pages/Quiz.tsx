@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
@@ -7,13 +7,19 @@ import {
   XCircle,
   Award,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Download
 } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+
+import { jsPDF } from "jspdf";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 const quizQuestions = [
   {
@@ -78,10 +84,49 @@ const PASS_THRESHOLD = 80;
 export default function Quiz() {
   const { courseId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [showResults, setShowResults] = useState(false);
   const [timeLeft] = useState("40:00");
+  const [courseTitle, setCourseTitle] = useState("");
+  const [userName, setUserName] = useState("");
+
+  const [dbScore, setDbScore] = useState<number | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      if (courseId) {
+        const { data } = await supabase.from("courses").select("title").eq("id", courseId).single();
+        if (data) setCourseTitle(data.title);
+      }
+      if (user) {
+        // Try profile first, then metadata
+        const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", user.id).single();
+        if (profile?.full_name) {
+          setUserName(profile.full_name);
+        } else {
+           setUserName(user.user_metadata?.full_name || user.email?.split('@')[0] || "Student");
+        }
+
+        if (courseId) {
+          const { data: enrollment } = await supabase
+            .from("enrollments")
+            .select("quiz_score")
+            .eq("user_id", user.id)
+            .eq("course_id", courseId)
+            .single();
+          
+          if (enrollment?.quiz_score !== null && enrollment?.quiz_score !== undefined) {
+             setDbScore(enrollment.quiz_score);
+             setShowResults(true);
+          }
+        }
+      }
+    }
+    fetchData();
+  }, [courseId, user]);
 
   const handleAnswer = (questionId: number, answer: string) => {
     setAnswers({ ...answers, [questionId]: answer });
@@ -99,9 +144,6 @@ export default function Quiz() {
     }
   };
 
-  const handleSubmit = () => {
-    setShowResults(true);
-  };
 
   const calculateScore = () => {
     let correct = 0;
@@ -111,8 +153,123 @@ export default function Quiz() {
     return Math.round((correct / quizQuestions.length) * 100);
   };
 
-  const score = calculateScore();
+  const handleSubmit = async () => {
+    const finalScore = calculateScore();
+    setDbScore(finalScore);
+    setShowResults(true);
+
+    if (user && courseId) {
+       const { error } = await supabase
+        .from("enrollments")
+        .update({ quiz_score: finalScore })
+        .eq("user_id", user.id)
+        .eq("course_id", courseId);
+        
+       if (error) {
+         console.error("Error saving quiz score:", error);
+         toast({
+           variant: "destructive",
+           title: "Error saving progress",
+           description: "Could not save your exam score. Please check your connection."
+         });
+       } else {
+         toast({
+           title: "Assessment Completed",
+           description: "Your results have been saved successfully."
+         });
+       }
+    }
+  };
+
+  const score = dbScore !== null ? dbScore : calculateScore();
   const passed = score >= PASS_THRESHOLD;
+
+  const generateCertificate = () => {
+    const doc = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: "a4"
+    });
+
+    // Brand Colors
+    const primaryColor = "#F97316"; // Brand orange
+    const secondaryColor = "#111827"; // Dark gray
+
+    // Background Border
+    doc.setLineWidth(2);
+    doc.setDrawColor(primaryColor);
+    doc.rect(10, 10, 277, 190);
+    
+    // Header
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(40);
+    doc.setTextColor(secondaryColor);
+    doc.text("CERTIFICATE", 148.5, 50, { align: "center" });
+    
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "normal");
+    doc.text("OF COMPLETION", 148.5, 60, { align: "center" });
+
+    // Logo / Brand Name
+    doc.setFontSize(16);
+    doc.setTextColor(primaryColor);
+    doc.text("VISION 360 SAFETY TRAINING", 148.5, 30, { align: "center" });
+
+    // Recipient
+    doc.setTextColor(secondaryColor);
+    doc.setFontSize(14);
+    doc.text("This certifies that", 148.5, 85, { align: "center" });
+
+    doc.setFontSize(32);
+    doc.setFont("helvetica", "bold");
+    doc.text(userName, 148.5, 105, { align: "center" });
+    doc.setLineWidth(0.5);
+    doc.line(70, 108, 227, 108); // Underline name
+
+    // Course Info
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "normal");
+    doc.text("has successfully completed the course", 148.5, 125, { align: "center" });
+
+    doc.setFontSize(24);
+    doc.setFont("helvetica", "bold");
+    doc.text(courseTitle, 148.5, 140, { align: "center" });
+
+    // Date & Signature Aligned
+    const today = new Date().toLocaleDateString();
+    const lineY = 175;
+    
+    // Left: Date
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    doc.text(today, 80, lineY - 5, { align: "center" }); // Date Value above line
+    doc.line(50, lineY, 110, lineY); // Line
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text("Date", 80, lineY + 5, { align: "center" }); // Label below
+
+    // Right: Signature
+    doc.setFont("times", "italic");
+    doc.setFontSize(14);
+    doc.setTextColor(secondaryColor);
+    doc.text("Vision 360 Team", 220, lineY - 5, { align: "center" }); // Signature above
+    doc.setLineWidth(0.5);
+    doc.setDrawColor(0); // Black line
+    doc.line(180, lineY, 260, lineY); // Line
+    
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text("Instructor / Administrator", 220, lineY + 5, { align: "center" }); // Label below
+
+    // Footer
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(150);
+    doc.text("Certificate ID: " + Math.random().toString(36).substr(2, 9).toUpperCase(), 148.5, 195, { align: "center" });
+
+    doc.save("vision360-certificate.pdf");
+  };
 
   if (showResults) {
     return (
@@ -128,6 +285,10 @@ export default function Quiz() {
                 <p className="text-muted-foreground mb-6">
                   You have successfully completed the safety assessment.
                 </p>
+                <Button onClick={generateCertificate} className="mb-6 w-full sm:w-auto" variant="outline">
+                  <Download className="h-4 w-4 mr-2" />
+                  Download Certificate
+                </Button>
               </>
             ) : (
               <>

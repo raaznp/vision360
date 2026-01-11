@@ -1,230 +1,311 @@
-import { useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
-  ArrowRight, 
+  ChevronRight, 
+  ChevronLeft,
   CheckCircle2,
-  AlertTriangle,
-  Info,
-  Download,
-  PlayCircle,
-  BookOpen
+  Menu,
 } from "lucide-react";
-import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-
-const lessonContent = {
-  title: "Emergency Response Protocols",
-  lessonNumber: 7,
-  totalLessons: 8,
-  content: [
-    {
-      type: "intro",
-      title: "Why Emergency Response Matters",
-      text: "In warehouse and logistics environments, emergencies can occur without warning. Being prepared with proper response protocols can save lives and minimize injuries. This lesson covers essential emergency procedures for truck loading and unloading operations.",
-    },
-    {
-      type: "section",
-      title: "Types of Emergencies",
-      items: [
-        "Vehicle accidents or collisions",
-        "Load shifts or falling cargo",
-        "Fire or explosion hazards",
-        "Chemical spills from damaged containers",
-        "Medical emergencies (injuries, heat stress)",
-        "Equipment malfunctions",
-      ],
-    },
-    {
-      type: "warning",
-      title: "Critical Safety Protocol",
-      text: "In ANY emergency, your first priority is personal safety. Never put yourself at risk to save cargo or equipment. Evacuate the area and alert others before attempting any response actions.",
-    },
-    {
-      type: "section",
-      title: "Immediate Response Steps",
-      items: [
-        "STOP all operations immediately",
-        "ALERT others in the area - use horn, radio, or verbal warnings",
-        "EVACUATE to the designated assembly point",
-        "CALL emergency services (911) and notify supervisors",
-        "SECURE the area - prevent others from entering",
-        "ASSIST emergency responders with information about hazards",
-      ],
-    },
-    {
-      type: "info",
-      title: "Emergency Contact Information",
-      text: "Emergency: 911 | Site Security: Ext. 100 | Safety Manager: Ext. 205 | First Aid Station: Loading Bay A",
-    },
-    {
-      type: "section",
-      title: "Fire Emergency Procedures",
-      items: [
-        "Activate the nearest fire alarm pull station",
-        "If safe to do so, use appropriate fire extinguisher (Class ABC for most warehouse fires)",
-        "Never fight a fire that is larger than a small trash can",
-        "Close doors behind you when evacuating to slow fire spread",
-        "Report the fire location and any trapped personnel to emergency services",
-      ],
-    },
-    {
-      type: "section",
-      title: "Medical Emergency Response",
-      items: [
-        "Do not move injured persons unless they are in immediate danger",
-        "Call for trained first aid responders",
-        "Apply pressure to wounds to control bleeding",
-        "For heat-related illness, move to cool area and provide water if conscious",
-        "Stay with the injured person until help arrives",
-        "Document the incident for reporting purposes",
-      ],
-    },
-  ],
-};
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function CourseContent() {
   const { courseId } = useParams();
-  const [searchParams] = useSearchParams();
-  const lessonId = searchParams.get("lesson") || "7";
-  const [completed, setCompleted] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  
+  const [course, setCourse] = useState<any>(null);
+  const [lessons, setLessons] = useState<any[]>([]);
+  const [currentLesson, setCurrentLesson] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const progress = (parseInt(lessonId) / lessonContent.totalLessons) * 100;
+  // Lesson ID from URL or default to first
+  const activeLessonId = searchParams.get("lesson") 
+    ? parseInt(searchParams.get("lesson")!) 
+    : lessons.length > 0 ? lessons[0].id : null;
+
+  useEffect(() => {
+    async function fetchContent() {
+      if (!courseId || !user) return;
+
+      try {
+        setLoading(true);
+        
+        // Fetch course info
+        const { data: courseData } = await supabase
+          .from("courses")
+          .select("id, title")
+          .eq("id", courseId)
+          .single();
+        setCourse(courseData);
+
+        // Fetch lessons
+        const { data: lessonsData } = await supabase
+          .from("lessons")
+          .select("*")
+          .eq("course_id", courseId)
+          .order("order_index", { ascending: true });
+        
+        // Fetch progress
+        const { data: progressData } = await supabase
+          .from("lesson_progress")
+          .select("lesson_id, status")
+          .eq("user_id", user.id);
+
+        if (lessonsData) {
+          const enrichedLessons = lessonsData.map(lesson => {
+            const progress = progressData?.find(p => p.lesson_id === lesson.id);
+            return { 
+              ...lesson, 
+              status: progress?.status || "locked", // Default logic, refine as needed
+              completed: progress?.status === "completed"
+            };
+          });
+          setLessons(enrichedLessons);
+        }
+      } catch (error) {
+        console.error("Error loading content:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchContent();
+  }, [courseId, user]);
+
+  useEffect(() => {
+    if (activeLessonId && lessons.length > 0) {
+      const found = lessons.find(l => l.id === activeLessonId);
+      if (found) setCurrentLesson(found);
+    }
+  }, [activeLessonId, lessons]);
+
+  const handleComplete = async () => {
+    if (!user || !currentLesson) return;
+    
+    try {
+      setUpdating(true);
+      
+      // Update lesson progress
+      const { error } = await supabase
+        .from("lesson_progress")
+        .upsert({
+          user_id: user.id,
+          lesson_id: currentLesson.id,
+          status: "completed",
+          completed_at: new Date().toISOString()
+        }, { onConflict: 'user_id, lesson_id' });
+
+      if (error) throw error;
+
+      // Update local state
+      setLessons(prev => prev.map(l => 
+        l.id === currentLesson.id ? { ...l, status: "completed", completed: true } : l
+      ));
+
+      // Update enrollment progress
+      const completedCount = lessons.filter(l => l.completed || l.id === currentLesson.id).length;
+      const progressPercent = Math.round((completedCount / lessons.length) * 100);
+      
+      await supabase
+        .from("enrollments")
+        .upsert({ 
+          user_id: user.id, 
+          course_id: courseId, 
+          progress: progressPercent, 
+          status: progressPercent === 100 ? 'completed' : 'in-progress' 
+          // We don't set enrolled_at to avoid resetting it, but if it's new it might be null? 
+          // Actually schema says enrolled_at has default now(). So if we omit it on insert, it works.
+        }, { onConflict: 'user_id, course_id' });
+
+      // Navigate to next lesson
+      const currentIndex = lessons.findIndex(l => l.id === currentLesson.id);
+      if (currentIndex < lessons.length - 1) {
+        const nextLesson = lessons[currentIndex + 1];
+        setSearchParams({ lesson: nextLesson.id.toString() });
+      } else {
+        navigate(`/courses/${courseId}`);
+      }
+
+    } catch (error) {
+      console.error("Error updating progress:", error);
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  if (loading || !course) {
+    return <div className="flex h-screen items-center justify-center">Loading...</div>;
+  }
+
+  const currentIndex = lessons.findIndex(l => l.id === activeLessonId);
+  const progress = (lessons.filter(l => l.completed).length / lessons.length) * 100;
 
   return (
-    <Layout>
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6 animate-fade-in">
-          <Link 
-            to={`/courses/${courseId}`}
-            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Course
+    <div className="flex flex-col h-screen bg-background">
+      {/* Header */}
+      <header className="h-16 border-b flex items-center justify-between px-4 bg-card shrink-0">
+        <div className="flex items-center gap-4">
+          <Link to={`/courses/${courseId}`} className="text-muted-foreground hover:text-foreground">
+             <ArrowLeft className="h-5 w-5" />
           </Link>
-          <div className="text-sm text-muted-foreground">
-            Lesson {lessonContent.lessonNumber} of {lessonContent.totalLessons}
-          </div>
+          <div className="h-6 w-px bg-border" />
+          <h1 className="font-semibold text-foreground truncate max-w-[200px] sm:max-w-md">
+            {course.title}
+          </h1>
         </div>
-
-        {/* Progress Bar */}
-        <div className="mb-8 animate-fade-in" style={{ animationDelay: "100ms" }}>
-          <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-muted-foreground">Course Progress</span>
-            <span className="font-medium text-foreground">{Math.round(progress)}%</span>
-          </div>
-          <Progress value={progress} className="h-2" />
-        </div>
-
-        {/* Lesson Title */}
-        <div className="mb-8 animate-fade-in" style={{ animationDelay: "200ms" }}>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">{lessonContent.title}</h1>
-        </div>
-
-        {/* Content Sections */}
-        <div className="space-y-6">
-          {lessonContent.content.map((section, index) => (
-            <div
-              key={index}
-              className="animate-fade-in"
-              style={{ animationDelay: `${(index + 3) * 100}ms` }}
-            >
-              {section.type === "intro" && (
-                <div className="card-safety p-6">
-                  <h2 className="text-lg font-semibold text-foreground mb-3">{section.title}</h2>
-                  <p className="text-muted-foreground leading-relaxed">{section.text}</p>
-                </div>
-              )}
-
-              {section.type === "section" && (
-                <div className="card-safety p-6">
-                  <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
-                    <BookOpen className="h-5 w-5 text-accent" />
-                    {section.title}
-                  </h2>
-                  <ul className="space-y-3">
-                    {section.items?.map((item, i) => (
-                      <li key={i} className="flex items-start gap-3 text-muted-foreground">
-                        <CheckCircle2 className="h-5 w-5 text-success flex-shrink-0 mt-0.5" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {section.type === "warning" && (
-                <div className="card-safety p-6 border-l-4 border-l-destructive bg-destructive/5">
-                  <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-destructive" />
-                    {section.title}
-                  </h2>
-                  <p className="text-muted-foreground leading-relaxed">{section.text}</p>
-                </div>
-              )}
-
-              {section.type === "info" && (
-                <div className="card-safety p-6 border-l-4 border-l-accent bg-accent/5">
-                  <h2 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
-                    <Info className="h-5 w-5 text-accent" />
-                    {section.title}
-                  </h2>
-                  <p className="text-muted-foreground font-mono text-sm">{section.text}</p>
-                </div>
-              )}
+        
+        <div className="flex items-center gap-4">
+          <div className="hidden sm:flex flex-col items-end mr-4">
+            <span className="text-xs text-muted-foreground mb-1">Course Progress</span>
+            <div className="w-32 h-2 bg-secondary rounded-full overflow-hidden">
+               <div 
+                 className="h-full bg-accent transition-all duration-500"
+                 style={{ width: `${progress}%` }}
+               />
             </div>
-          ))}
-        </div>
-
-        {/* Resources */}
-        <div className="card-safety p-6 mt-8 animate-fade-in" style={{ animationDelay: "1000ms" }}>
-          <h3 className="font-semibold text-foreground mb-4">Downloadable Resources</h3>
-          <div className="flex flex-wrap gap-3">
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Emergency Checklist (PDF)
-            </Button>
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-2" />
-              Quick Reference Card
-            </Button>
           </div>
-        </div>
-
-        {/* Navigation */}
-        <div className="flex items-center justify-between mt-8 pt-6 border-t border-border animate-fade-in" style={{ animationDelay: "1100ms" }}>
-          <Link to={`/courses/${courseId}/content?lesson=6`}>
-            <Button variant="outline">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Previous Lesson
-            </Button>
-          </Link>
-
-          <div className="flex items-center gap-3">
-            <Button
-              variant={completed ? "success" : "secondary"}
-              onClick={() => setCompleted(!completed)}
-            >
-              {completed ? (
-                <>
-                  <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Completed
-                </>
-              ) : (
-                "Mark as Complete"
-              )}
-            </Button>
-            <Link to={`/courses/${courseId}/quiz`}>
-              <Button variant="safety">
-                Next: Final Quiz
-                <ArrowRight className="h-4 w-4 ml-2" />
+          
+          <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="lg:hidden">
+                <Menu className="h-5 w-5" />
               </Button>
-            </Link>
-          </div>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-80 p-0">
+               {/* Mobile Sidebar Content */}
+               <div className="h-full flex flex-col bg-sidebar">
+                  <div className="p-4 border-b border-sidebar-border">
+                    <h2 className="font-semibold text-sidebar-foreground">Course Content</h2>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                    {lessons.map((lesson, idx) => (
+                      <button
+                        key={lesson.id}
+                        onClick={() => {
+                          setSearchParams({ lesson: lesson.id.toString() });
+                           setIsSidebarOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors ${
+                          activeLessonId === lesson.id
+                            ? "bg-accent/10 text-accent"
+                            : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+                        }`}
+                      >
+                        <div className={`
+                          w-6 h-6 rounded-full flex items-center justify-center text-xs border
+                          ${lesson.completed 
+                            ? "bg-success border-success text-success-foreground" 
+                            : activeLessonId === lesson.id
+                            ? "border-accent text-accent"
+                            : "border-muted-foreground text-muted-foreground"}
+                        `}>
+                          {lesson.completed ? <CheckCircle2 className="h-3 w-3" /> : idx + 1}
+                        </div>
+                        <span className="text-sm font-medium line-clamp-2">{lesson.title}</span>
+                      </button>
+                    ))}
+                  </div>
+               </div>
+            </SheetContent>
+          </Sheet>
         </div>
+      </header>
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Desktop Sidebar */}
+        <aside className="hidden lg:flex w-80 flex-col border-r bg-sidebar">
+          <div className="p-4 border-b border-sidebar-border">
+            <h2 className="font-semibold text-sidebar-foreground">Course Content</h2>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+             {lessons.map((lesson, idx) => (
+                <button
+                  key={lesson.id}
+                  onClick={() => setSearchParams({ lesson: lesson.id.toString() })}
+                  className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-colors ${
+                    activeLessonId === lesson.id
+                      ? "bg-accent/10 text-accent"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent/50"
+                  }`}
+                >
+                  <div className={`
+                    w-6 h-6 rounded-full flex items-center justify-center text-xs border shrink-0
+                    ${lesson.completed 
+                      ? "bg-success border-success text-success-foreground" 
+                      : activeLessonId === lesson.id
+                      ? "border-accent text-accent"
+                      : "border-muted-foreground text-muted-foreground"}
+                  `}>
+                    {lesson.completed ? <CheckCircle2 className="h-3 w-3" /> : idx + 1}
+                  </div>
+                  <span className="text-sm font-medium line-clamp-2">{lesson.title}</span>
+                </button>
+              ))}
+          </div>
+        </aside>
+
+        {/* Main Content Area */}
+        <main className="flex-1 overflow-y-auto bg-background">
+          <div className="max-w-4xl mx-auto px-4 py-8">
+            {currentLesson ? (
+              <div className="space-y-8 animate-fade-in">
+                <div>
+                  <h1 className="text-3xl font-bold text-foreground mb-4">{currentLesson.title}</h1>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>Lesson {currentIndex + 1} of {lessons.length}</span>
+                    <span>•</span>
+                    <span>{currentLesson.duration}</span>
+                  </div>
+                </div>
+
+                <div className="prose prose-invert max-w-none">
+                  {/* Content Placeholder - in real app would be HTML/Markdown from DB */}
+                  <div className="p-8 bg-card rounded-xl border border-border min-h-[400px]">
+                     <h3 className="text-xl font-semibold mb-4">Lesson Content</h3>
+                     <p>{currentLesson.content || "Content coming soon..."}</p>
+                     <p className="mt-4">
+                       This is a placeholder for the lesson content. In a real application, 
+                       this would be rich text, video, or interactive elements stored in the database.
+                     </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-8 border-t border-border">
+                  <Button
+                    variant="ghost"
+                    disabled={currentIndex === 0}
+                    onClick={() => {
+                       const prev = lessons[currentIndex - 1];
+                       if (prev) setSearchParams({ lesson: prev.id.toString() });
+                    }}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-2" />
+                    Previous
+                  </Button>
+
+                  <Button 
+                    variant="safety"
+                    size="lg" 
+                    onClick={handleComplete}
+                    disabled={updating}
+                  >
+                    {updating ? "Saving..." : currentIndex === lessons.length - 1 ? "Finish Course" : "Complete & Next"}
+                    {!updating && <ChevronRight className="h-4 w-4 ml-2" />}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+                <div className="text-center py-12 text-muted-foreground">Select a lesson to begin</div>
+            )}
+          </div>
+        </main>
       </div>
-    </Layout>
+    </div>
   );
 }

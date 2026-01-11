@@ -1,21 +1,32 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import logo from "@/assets/logo.jpg";
+import { useToast } from "@/hooks/use-toast";
 
-export default function Login() {
+export default function UpdatePassword() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
+  const [password, setPassword] = useState("");
+
+  // Clean hash from URL on mount if present (Supabase adds type=recovery code)
+  useEffect(() => {
+    // Ideally, we check if the user is authenticated (which they should be if they clicked the magic link)
+    // or if the session was established.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+         // If no session, they might have lost the token or accessed directly
+         // Potentially redirect to login or stay here but update might fail
+      }
+    });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,17 +34,20 @@ export default function Login() {
     setError("");
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
+      const { error } = await supabase.auth.updateUser({
+        password: password,
       });
 
       if (error) {
         setError(error.message);
       } else {
+        toast({
+          title: "Password updated successfully",
+          description: "You can now log in with your new password.",
+        });
         navigate("/dashboard");
       }
-    } catch (err) {
+    } catch (err: any) {
       setError("An unexpected error occurred");
       console.error(err);
     } finally {
@@ -59,9 +73,9 @@ export default function Login() {
         <div className="w-full max-w-md animate-fade-in">
           <div className="bg-card rounded-2xl shadow-elevated p-8 border border-border">
             <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold text-foreground">Welcome Back</h2>
+              <h2 className="text-2xl font-bold text-foreground">Set New Password</h2>
               <p className="text-muted-foreground mt-2">
-                Sign in to access your safety training
+                Enter your new password below
               </p>
             </div>
 
@@ -74,34 +88,9 @@ export default function Login() {
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-foreground font-medium">
-                  Email Address
+                <Label htmlFor="password" className="text-foreground font-medium">
+                  New Password
                 </Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@company.com"
-                    className="pl-10 h-12"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-foreground font-medium">
-                    Password
-                  </Label>
-                  <Link
-                    to="/forgot-password"
-                    className="text-sm text-accent hover:text-accent/80 font-medium"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input
@@ -109,8 +98,10 @@ export default function Login() {
                     type={showPassword ? "text" : "password"}
                     placeholder="••••••••"
                     className="pl-10 pr-10 h-12"
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    minLength={6}
                   />
                   <button
                     type="button"
@@ -132,29 +123,13 @@ export default function Login() {
                 {isLoading ? (
                   <div className="flex items-center gap-2">
                     <div className="h-4 w-4 border-2 border-accent-foreground/30 border-t-accent-foreground rounded-full animate-spin" />
-                    Signing in...
+                    Updating...
                   </div>
                 ) : (
-                  "Sign In"
+                  "Update Password"
                 )}
               </Button>
             </form>
-
-            <div className="mt-8 pt-6 border-t border-border text-center">
-              <p className="text-sm text-muted-foreground">
-                Don't have an account?{" "}
-                <Link to="#" className="text-accent hover:text-accent/80 font-medium">
-                  Contact your administrator
-                </Link>
-              </p>
-            </div>
-          </div>
-
-          {/* Safety Notice */}
-          <div className="mt-6 text-center">
-            <p className="text-sm text-primary-foreground/60">
-              🔒 Your training data is encrypted and secure
-            </p>
           </div>
         </div>
       </main>
