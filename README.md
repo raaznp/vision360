@@ -1,77 +1,95 @@
-# Vision360
+# Vision 360° - Safety Training System
 
-A modern web application built with [Vite](https://vitejs.dev/), [React](https://react.dev/), and [TypeScript](https://www.typescriptlang.org/). This project utilizes [Shadcn UI](https://ui.shadcn.com/) for building accessible and customizable components, along with [Tailwind CSS](https://tailwindcss.com/) for styling.
+A comprehensive Safety Training System built for modern enterprises. Vision 360° allows organizations to manage employee training, track progress, issue certificates, and maintain safety compliance with a premium, user-friendly interface.
 
-## Features
+![Vision 360 Dashboard](https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop)
 
-- **Framework**: React + Vite for fast development and HMR.
-- **Language**: TypeScript for type safety.
-- **Styling**: Tailwind CSS + Shadcn UI.
-- **Routing**: React Router DOM.
-- **State Management**: TanStack Query (React Query) for server state management.
-- **Form Handling**: React Hook Form with Zod validation.
+## 🚀 Key Features
 
-## Getting Started
+- **Interactive Dashboard**: Real-time overview of training progress, active courses, and certification status.
+- **Course Management**: Rich media support for safety courses, quizzes, and multimedia lessons.
+- **Certification System**: Automated generation of PDF certificates upon successful course completion (80%+ score).
+- **Role-Based Access Control (RBAC)**: Secure "Admin" and "User" roles.
+  - **Admins**: Manage users, view activity logs, and oversee the system.
+  - **Staff/Users**: Enroll in courses, take exams, and view their history.
+- **Activity Logging**: Comprehensive audit trail for all critical system actions.
+- **Responsive Design**: Fully optimized for desktop, tablet, and mobile devices.
+
+## 🛠 Tech Stack
+
+- **Frontend**: [React](https://react.dev/) + [Vite](https://vitejs.dev/)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **UI Components**: [Shadcn UI](https://ui.shadcn.com/) + Lucide Icons
+- **Backend / Database**: [Supabase](https://supabase.com/) (PostgreSQL + Auth)
+- **State Management**: React Context + TanStack Query
+- **PDF Generation**: jsPDF
+
+## 🏁 Getting Started
 
 ### Prerequisites
 
-Ensure you have Node.js installed on your machine.
+- Node.js (v18 or higher)
+- npm (v9 or higher)
 
 ### Installation
 
-1.  Clone the repository:
+1.  **Clone the repository**
 
     ```bash
     git clone https://github.com/raaznp/vision360.git
     cd vision360
     ```
 
-2.  Install dependencies:
+2.  **Install dependencies**
+
     ```bash
     npm install
-    # or
-    yarn install
-    # or
-    pnpm install
-    # or
-    bun install
     ```
 
-### Running the Application
+3.  **Environment Setup**
+    Create a `.env` file in the root directory (copy from `.env.example`):
 
-To start the development server:
+    ```bash
+    cp .env.example .env
+    ```
 
-```bash
-npm run dev
-```
+    Update the values with your Supabase credentials:
 
-The application will be available at `http://localhost:8080` (or the port shown in your terminal).
+    ```env
+    VITE_SUPABASE_URL=your_project_url
+    VITE_SUPABASE_ANON_KEY=your_anon_key
+    ```
 
-### Building for Production
+4.  **Run the Development Server**
+    ```bash
+    npm run dev
+    ```
+    The app will be available at `http://localhost:8080`.
 
-To build the application for production:
+## 🧪 Demo Credentials
 
-```bash
-npm run build
-```
+You can use the following credentials to explore the system (if using the provided demo database):
 
-The build artifacts will be stored in the `dist` directory.
+| Role      | Email                | Password          |
+| :-------- | :------------------- | :---------------- |
+| **Admin** | `test@vision360.com` | `2"U]baYn!w,9h%S` |
 
-### Linting
+## 🛡️ Admin Features
 
-To run the linter:
+To access the Admin Panel:
 
-```bash
-npm run lint
-```
+1.  Log in with an Admin account.
+2.  Click the **Profile Avatar** in the top right.
+3.  Select **Users & Staff** or **Activity Logs**.
 
-## Project Structure
+From here you can:
 
-- `src/`: Source code including components, pages, and hooks.
-- `public/`: Static assets.
-- `components.json`: Configuration for Shadcn UI.
-- `vite.config.ts`: Vite configuration.
+- Add new users directly (generates instant profile).
+- Promote users to 'Admin' or 'Staff'.
+- Delete users.
+- View a timeline of all system activities.
 
-## License
+## 📄 License
 
-[MIT](LICENSE)
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
