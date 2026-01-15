@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, 
   Clock, 
@@ -11,7 +11,7 @@ import {
   Award
 } from "lucide-react";
 import Layout from "@/components/Layout";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
@@ -19,6 +19,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export default function CourseDetail() {
   const { courseId } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [course, setCourse] = useState<any>(null);
   const [lessons, setLessons] = useState<any[]>([]);
@@ -215,8 +216,15 @@ export default function CourseDetail() {
               {lessons.map((lesson, index) => (
                 <div
                   key={lesson.id}
-                  className={`card-safety p-4 animate-fade-in ${
-                    lesson.status === "locked" ? "opacity-60" : ""
+                  onClick={() => {
+                     if (lesson.status !== "locked") {
+                       navigate(`/courses/${courseId}/content?lesson=${lesson.id}`);
+                     }
+                  }}
+                  className={`card-safety p-4 animate-fade-in transition-all duration-200 border-2 border-transparent ${
+                    lesson.status === "locked" 
+                      ? "opacity-60 cursor-not-allowed" 
+                      : "cursor-pointer hover:border-accent hover:shadow-lg hover:scale-[1.01]"
                   }`}
                   style={{ animationDelay: `${(index + 2) * 100}ms` }}
                 >
@@ -246,14 +254,14 @@ export default function CourseDetail() {
                     </div>
 
                     {lesson.status !== "locked" && (
-                      <Link to={`/courses/${courseId}/content?lesson=${lesson.id}`}>
-                        <Button 
-                          variant={lesson.status === "completed" ? "outline" : "safety"}
-                          size="sm"
+                        <div 
+                          className={buttonVariants({ 
+                             variant: lesson.status === "completed" ? "outline" : "safety", 
+                             size: "sm" 
+                          })}
                         >
                           {lesson.status === "completed" ? "Review" : "Continue"}
-                        </Button>
-                      </Link>
+                        </div>
                     )}
                   </div>
                 </div>
