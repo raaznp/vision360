@@ -212,64 +212,77 @@ export default function CourseDetail() {
           <div className="lg:col-span-2 space-y-4">
             <h2 className="text-xl font-semibold text-foreground">Course Content</h2>
             
-            <div className="space-y-3">
               {lessons.map((lesson, index) => {
                 const isLocked = lesson.status === "locked";
-                const Comp = isLocked ? "div" : Link;
-                const linkProps = isLocked ? {} : { to: `/courses/${courseId}/content?lesson=${lesson.id}` };
+                const commonClasses = `block card-safety p-4 animate-fade-in transition-all duration-200 border-2 border-transparent ${
+                  isLocked 
+                    ? "opacity-60 cursor-not-allowed" 
+                    : "cursor-pointer hover:border-accent hover:shadow-lg hover:scale-[1.01]"
+                }`;
+                const animationStyle = { animationDelay: `${(index + 2) * 100}ms` };
 
-                return (
-                  // @ts-ignore - Dynamic component props mismatch
-                  <Comp
-                    key={lesson.id}
-                    {...linkProps}
-                    className={`block card-safety p-4 animate-fade-in transition-all duration-200 border-2 border-transparent ${
-                      isLocked 
-                        ? "opacity-60 cursor-not-allowed" 
-                        : "cursor-pointer hover:border-accent hover:shadow-lg hover:scale-[1.01]"
-                    }`}
-                    style={{ animationDelay: `${(index + 2) * 100}ms` }}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
-                        lesson.status === "completed" 
-                          ? "bg-success/10 text-success" 
-                          : lesson.status === "in-progress" || lesson.status === "not-started" // treat not-started as potentially active
-                          ? "bg-accent/10 text-accent"
-                          : "bg-secondary text-muted-foreground"
-                      }`}>
-                        {lesson.status === "completed" ? (
-                          <CheckCircle2 className="h-5 w-5" />
-                        ) : lesson.status === "locked" ? (
-                          <Lock className="h-5 w-5" />
-                        ) : (
-                          <span className="font-semibold">{index + 1}</span>
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-foreground">{lesson.title}</h3>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {lesson.duration}
-                        </p>
-                      </div>
-
-                      {!isLocked && (
-                          <div 
-                            className={buttonVariants({ 
-                               variant: lesson.status === "completed" ? "outline" : "safety", 
-                               size: "sm" 
-                            })}
-                          >
-                            {lesson.status === "completed" ? "Review" : "Continue"}
-                          </div>
+                const Content = () => (
+                  <div className="flex items-center gap-4">
+                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                      lesson.status === "completed" 
+                        ? "bg-success/10 text-success" 
+                        : lesson.status === "in-progress" || lesson.status === "not-started" 
+                        ? "bg-accent/10 text-accent"
+                        : "bg-secondary text-muted-foreground"
+                    }`}>
+                      {lesson.status === "completed" ? (
+                        <CheckCircle2 className="h-5 w-5" />
+                      ) : lesson.status === "locked" ? (
+                        <Lock className="h-5 w-5" />
+                      ) : (
+                        <span className="font-semibold">{index + 1}</span>
                       )}
                     </div>
-                  </Comp>
+
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-foreground">{lesson.title}</h3>
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {lesson.duration}
+                      </p>
+                    </div>
+
+                    {!isLocked && (
+                        <div 
+                          className={buttonVariants({ 
+                             variant: lesson.status === "completed" ? "outline" : "safety", 
+                             size: "sm" 
+                          })}
+                        >
+                          {lesson.status === "completed" ? "Review" : "Continue"}
+                        </div>
+                    )}
+                  </div>
+                );
+
+                if (isLocked) {
+                  return (
+                    <div
+                      key={lesson.id}
+                      className={commonClasses}
+                      style={animationStyle}
+                    >
+                      <Content />
+                    </div>
+                  );
+                }
+
+                return (
+                  <Link
+                    key={lesson.id}
+                    to={`/courses/${courseId}/content?lesson=${lesson.id}`}
+                    className={commonClasses}
+                    style={animationStyle}
+                  >
+                    <Content />
+                  </Link>
                 );
               })}
-            </div>
 
             {/* Final Exam Button */}
             <div className="card-safety p-6 border-2 border-accent/20 animate-fade-in" style={{ animationDelay: "1000ms" }}>
