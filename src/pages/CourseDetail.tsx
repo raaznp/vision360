@@ -214,12 +214,13 @@ export default function CourseDetail() {
             
               {lessons.map((lesson, index) => {
                 const isLocked = lesson.status === "locked";
-                const commonClasses = `block card-safety p-4 animate-fade-in transition-all duration-200 border-2 border-transparent ${
+                const commonClasses = `block card-safety p-4 transition-all duration-200 border-2 border-transparent relative z-10 ${
                   isLocked 
                     ? "opacity-60 cursor-not-allowed" 
                     : "cursor-pointer hover:border-accent hover:shadow-lg hover:scale-[1.01]"
                 }`;
-                const animationStyle = { animationDelay: `${(index + 2) * 100}ms` };
+                // Remove animationDelay to prevent any fill-mode issues
+                // const animationStyle = { animationDelay: `${(index + 2) * 100}ms` };
 
                 const Content = () => (
                   <div className="flex items-center gap-4">
@@ -265,7 +266,7 @@ export default function CourseDetail() {
                     <div
                       key={lesson.id}
                       className={commonClasses}
-                      style={animationStyle}
+                      style={{ pointerEvents: 'none' }} 
                     >
                       <Content />
                     </div>
@@ -277,7 +278,7 @@ export default function CourseDetail() {
                     key={lesson.id}
                     to={`/courses/${courseId}/content?lesson=${lesson.id}`}
                     className={commonClasses}
-                    style={animationStyle}
+                    style={{ pointerEvents: 'auto' }}
                   >
                     <Content />
                   </Link>
