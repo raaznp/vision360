@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import ThreeSixtyViewer from "@/components/ThreeSixtyViewer";
+import { tourConfigs } from "@/config/tourConfig";
 
 export default function CourseContent() {
   const { courseId } = useParams();
@@ -266,14 +268,28 @@ export default function CourseContent() {
 
                 <div className="prose prose-invert max-w-none">
                   {/* Content Placeholder - in real app would be HTML/Markdown from DB */}
-                  <div className="p-8 bg-card rounded-xl border border-border min-h-[400px]">
-                     <h3 className="text-xl font-semibold mb-4">Lesson Content</h3>
-                     <p>{currentLesson.content || "Content coming soon..."}</p>
-                     <p className="mt-4">
-                       This is a placeholder for the lesson content. In a real application, 
-                       this would be rich text, video, or interactive elements stored in the database.
-                     </p>
-                  </div>
+                  
+                  {tourConfigs[currentLesson.title] ? (
+                      <div className="mb-8">
+                        <ThreeSixtyViewer 
+                            imageUrl={tourConfigs[currentLesson.title].imageUrl}
+                            hotspots={tourConfigs[currentLesson.title].hotspots}
+                        />
+                        <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg text-sm text-blue-200">
+                            <h4 className="font-semibold mb-1 flex items-center gap-2">Interactive 360° Tour</h4>
+                            <p>Click and drag to look around. Click on the red hotspots to learn about safety hazards and protocols in the warehouse.</p>
+                        </div>
+                      </div>
+                  ) : (
+                    <div className="p-8 bg-card rounded-xl border border-border min-h-[400px]">
+                        <h3 className="text-xl font-semibold mb-4">Lesson Content</h3>
+                        <p>{currentLesson.content || "Content coming soon..."}</p>
+                        <p className="mt-4">
+                        This is a placeholder for the lesson content. In a real application, 
+                        this would be rich text, video, or interactive elements stored in the database.
+                        </p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between pt-8 border-t border-border">
