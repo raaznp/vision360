@@ -1,22 +1,22 @@
 import { useNavigate } from "react-router-dom";
-import { FileQuestion, ArrowLeft } from "lucide-react";
+import { ShieldAlert, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const NotFound = () => {
+const Forbidden = () => {
   const navigate = useNavigate();
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 text-center">
-      <div className="animate-fade-in card-safety max-w-md p-8 shadow-2xl">
+      <div className="animate-fade-in card-safety max-w-md p-8 shadow-2xl border-destructive/20">
         <div className="mb-6 flex justify-center">
-          <div className="h-20 w-20 rounded-full bg-accent/10 flex items-center justify-center">
-            <FileQuestion className="h-10 w-10 text-accent" />
+          <div className="h-20 w-20 rounded-full bg-destructive/10 flex items-center justify-center">
+            <ShieldAlert className="h-10 w-10 text-destructive" />
           </div>
         </div>
         
-        <h1 className="mb-2 text-3xl font-bold tracking-tight text-foreground">Page Not Found</h1>
+        <h1 className="mb-2 text-3xl font-bold tracking-tight text-foreground">Access Denied</h1>
         <p className="mb-6 text-muted-foreground">
-          The page you are looking for might have been removed, had its name changed, or is temporarily unavailable.
+          You do not have permission to access the requested resource. If you believe this is an error, please contact your administrator.
         </p>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
@@ -31,10 +31,10 @@ const NotFound = () => {
       </div>
       
       <div className="mt-8 text-sm text-muted-foreground">
-        Error Code: 404 Not Found
+        Error Code: 403 Forbidden
       </div>
     </div>
   );
 };
 
-export default NotFound;
+export default Forbidden;

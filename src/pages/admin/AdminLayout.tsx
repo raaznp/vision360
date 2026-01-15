@@ -33,7 +33,7 @@ export default function AdminLayout() {
   }
 
   if (!isAdmin) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/forbidden" replace />;
   }
 
   return <Outlet />;

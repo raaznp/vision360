@@ -19,6 +19,7 @@ import AdminLayout from "./pages/admin/AdminLayout";
 import UserManagement from "./pages/admin/UserManagement";
 import ActivityLogs from "./pages/admin/ActivityLogs";
 import NotFound from "./pages/NotFound";
+import Forbidden from "./pages/Forbidden";
 
 const queryClient = new QueryClient();
 
@@ -154,6 +155,7 @@ VITE_SUPABASE_ANON_KEY=your_anon_key</pre>
                 <Route path="logs" element={<ActivityLogs />} />
               </Route>
               
+              <Route path="/forbidden" element={<Forbidden />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
