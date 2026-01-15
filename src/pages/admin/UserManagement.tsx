@@ -131,7 +131,10 @@ export default function UserManagement() {
 
         logActivity("Create User", `Created user ${newUser.fullName} (${newUser.role})`);
         
-        toast({ title: "User created successfully!" });
+        toast({ 
+          title: "User created successfully!",
+          description: "A verification email has been sent. The user must verify their account before logging in."
+        });
         setIsAddOpen(false);
         setNewUser({ fullName: "", email: "", password: "", role: "user" });
         fetchUsers();
