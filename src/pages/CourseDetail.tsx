@@ -245,13 +245,13 @@ export default function CourseDetail() {
                       </p>
                     </div>
 
-                    {lesson.status !== "locked" && lesson.status !== "completed" && (
+                    {lesson.status !== "locked" && (
                       <Link to={`/courses/${courseId}/content?lesson=${lesson.id}`}>
                         <Button 
-                          variant="safety"
+                          variant={lesson.status === "completed" ? "outline" : "safety"}
                           size="sm"
                         >
-                          Continue
+                          {lesson.status === "completed" ? "Review" : "Continue"}
                         </Button>
                       </Link>
                     )}
