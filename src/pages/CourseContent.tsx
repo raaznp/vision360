@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import ThreeSixtyViewer from "@/components/ThreeSixtyViewer";
 import { tourConfigs } from "@/config/tourConfig";
+import { videoConfigs } from "@/config/videoConfig";
 
 export default function CourseContent() {
   const { courseId } = useParams();
@@ -278,6 +279,29 @@ export default function CourseContent() {
                         <div className="mt-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg text-sm text-blue-200">
                             <h4 className="font-semibold mb-1 flex items-center gap-2">Interactive 360° Tour</h4>
                             <p>Click and drag to look around. Click on the red hotspots to learn about safety hazards and protocols in the warehouse.</p>
+                        </div>
+                      </div>
+                  ) : videoConfigs[currentLesson.title] ? (
+                      <div className="space-y-6 animate-fade-in">
+                        <div className="aspect-video w-full rounded-xl overflow-hidden border border-border bg-black shadow-lg relative z-0">
+                          <iframe 
+                            width="100%" 
+                            height="100%" 
+                            src={`https://www.youtube.com/embed/${videoConfigs[currentLesson.title].videoId}`} 
+                            title={currentLesson.title}
+                            frameBorder="0" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                            allowFullScreen
+                            className="w-full h-full"
+                          ></iframe>
+                        </div>
+                        <div className="p-6 bg-card rounded-xl border border-border z-10 relative">
+                           <h3 className="text-xl font-semibold mb-2">{videoConfigs[currentLesson.title].title}</h3>
+                           <p className="text-muted-foreground">{videoConfigs[currentLesson.title].description}</p>
+                           <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+                             <CheckCircle2 className="h-4 w-4 text-accent" />
+                             <span>Watch the full video to complete this module.</span>
+                           </div>
                         </div>
                       </div>
                   ) : (
