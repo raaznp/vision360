@@ -7,7 +7,7 @@ import React from 'react';
 
 // Wrapper for router context
 const renderWithRouter = (ui: React.ReactElement) => {
-  return render(<BrowserRouter>{ui}</BrowserRouter>);
+  return render(<BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>{ui}</BrowserRouter>);
 };
 
 describe('Page Component Smoke Tests', () => {

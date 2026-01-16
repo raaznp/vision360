@@ -26,7 +26,7 @@ vi.mock('@/lib/supabase', () => ({
 // Wrapper
 const renderWithAuth = (ui: React.ReactElement) => {
   return render(
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AuthProvider>{ui}</AuthProvider>
     </BrowserRouter>
   );
@@ -42,9 +42,9 @@ describe('Auth Workflows', () => {
   });
 
   describe('Login Page', () => {
-    it('should render login form', () => {
+    it('should render login form', async () => {
       renderWithAuth(<Login />);
-      expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+      expect(await screen.findByLabelText(/email/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
     });
